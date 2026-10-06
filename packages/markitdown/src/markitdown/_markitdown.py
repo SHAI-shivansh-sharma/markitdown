@@ -792,13 +792,17 @@ class MarkItDown:
 
                 output_mimetype = result.prediction.output.mime_type
                 output_extensions = result.prediction.output.extensions
+                explicit_csv_hint = (base_guess.mimetype or "").lower().startswith(
+                    ("text/csv", "application/csv")
+                ) or (base_guess.extension or "").lower() == ".csv"
                 if (
-                    base_guess.mimetype is None
-                    and base_guess.extension is None
+                    not explicit_csv_hint
                     and result.prediction.output.is_text
                     and output_mimetype == "text/csv"
                     and not _looks_like_delimited_text(stream_page)
                 ):
+                    # Do not override an explicit CSV hint: a single-column
+                    # CSV has no delimiter for the sniffer to find.
                     output_mimetype = "text/plain"
                     output_extensions = ["txt"]
 
@@ -817,8 +821,7 @@ class MarkItDown:
 
                 if (
                     base_guess.extension is not None
-                    and base_guess.extension.lstrip(".")
-                    not in output_extensions
+                    and base_guess.extension.lstrip(".") not in output_extensions
                 ):
                     compatible = False
 
@@ -832,8 +835,7 @@ class MarkItDown:
                     # Add the compatible base guess
                     guesses.append(
                         StreamInfo(
-                            mimetype=base_guess.mimetype
-                            or output_mimetype,
+                            mimetype=base_guess.mimetype or output_mimetype,
                             extension=base_guess.extension or guessed_extension,
                             charset=base_guess.charset or charset,
                             filename=base_guess.filename,
